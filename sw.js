@@ -2,7 +2,7 @@ self.addEventListener('install', e=>{
   e.waitUntil(
     caches.open('snake-cache').then(cache => 
       cache.addAll([
-        './index.html',               // cache index.html
+        './',               // cache index.html
         './index.html',
         './manifest.json',
         './icon-192.png',
