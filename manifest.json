@@ -1,7 +1,7 @@
 {
   "name": "Snake Deluxe",
   "short_name": "Snake",
-  "start_url": "./",
+  "start_url": "./https://f-111c.github.io/ad/",
   "display": "standalone",
   "background_color": "#111",
   "theme_color": "#00ff88",
