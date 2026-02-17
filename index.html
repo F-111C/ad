@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Snake Deluxe Fullscreen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00ff88">
+<style>
+body {
+  margin:0;
+  background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-family: Arial, sans-serif;
+  color:white;
+  height:100vh;
+  overflow:hidden;
+}
+canvas {
+  background:#111; 
+  border-radius:12px; 
+  box-shadow:0 0 25px #00ff88; 
+  display:none;
+}
+.screen { 
+  display:flex; 
+  flex-direction:column; 
+  align-items:center; 
+  justify-content:center; 
+  height:100%; 
+  width:100%; 
+  position:absolute; 
+  top:0; 
+}
+button { 
+  padding:10px 20px; 
+  margin:10px; 
+  border:none; 
+  border-radius:8px; 
+  background:#00ff88; 
+  color:black; 
+  font-weight:bold; 
+  font-size:18px; 
+}
+button:hover{background:#00cc6a;}
+.ui{
+  display:flex; 
+  justify-content:space-between; 
+  width:90%; 
+  max-width:500px; 
+  font-size:18px; 
+  margin:10px 0;
+}
+</style>
+</head>
+<body>
+
+<!-- MAIN MENU -->
+<div id="menu" class="screen">
+  <h1>🐍 Snake Deluxe</h1>
+  <button onclick="startGame(false)">Play</button>
+  <button onclick="startGame(true)">Play with AI 🤖</button>
+</div>
+
+<!-- GAME UI -->
+<div id="gameUI" class="ui" style="display:none;">
+  <div>Score: <span id="score">0</span></div>
+  <div>Mode: <span id="mode">PLAYER</span></div>
+</div>
+
+<canvas id="game"></canvas>
+
+<!-- GAME OVER SCREEN -->
+<div id="gameOver" class="screen" style="display:none;">
+  <h2>💀 Game Over</h2>
+  <p>Final Score: <span id="finalScore"></span></p>
+  <button onclick="backToMenu()">Main Menu</button>
+  <button onclick="restartGame()">Restart</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let snake, direction, food, score, game, aiMode=false, currentMode=false;
+let box = 20, gridSizeX, gridSizeY;
+
+// Resize canvas to fill screen while keeping a grid
+function resizeCanvas() {
+  canvas.width = window.innerWidth - 20; // small padding
+  canvas.height = window.innerHeight - 100; // leave space for UI
+  gridSizeX = Math.floor(canvas.width / box);
+  gridSizeY = Math.floor(canvas.height / box);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// --- Game Functions ---
+function startGame(ai=false){
+  aiMode = ai; currentMode = ai;
+  document.getElementById("menu").style.display="none";
+  document.getElementById("gameOver").style.display="none";
+  document.getElementById("gameUI").style.display="flex";
+  canvas.style.display="block";
+  snake = [{x: Math.floor(gridSizeX/2)*box, y: Math.floor(gridSizeY/2)*box}];
+  direction = "RIGHT";
+  food = spawnFood();
+  score = 0;
+  document.getElementById("score").textContent=score;
+  document.getElementById("mode").textContent=aiMode?"AI 🤖":"PLAYER";
+  if(game) clearInterval(game);
+  game = setInterval(draw, 100);
+}
+
+function restartGame(){startGame(currentMode);}
+function backToMenu(){
+  document.getElementById("menu").style.display="flex";
+  document.getElementById("gameOver").style.display="none";
+  document.getElementById("gameUI").style.display="none";
+  canvas.style.display="none";
+}
+
+function spawnFood(){
+  return {
+    x: Math.floor(Math.random() * gridSizeX) * box,
+    y: Math.floor(Math.random() * gridSizeY) * box
+  };
+}
+
+// Keyboard support (optional)
+document.addEventListener("keydown", e=>{
+  const k=e.key.toLowerCase();
+  if(!aiMode){
+    if((k==="arrowleft"||k==="a") && direction!=="RIGHT") direction="LEFT";
+    if((k==="arrowup"||k==="w") && direction!=="DOWN") direction="UP";
+    if((k==="arrowright"||k==="d") && direction!=="LEFT") direction="RIGHT";
+    if((k==="arrowdown"||k==="s") && direction!=="UP") direction="DOWN";
+  }
+});
+
+// Swipe support
+let startX,startY;
+canvas.addEventListener("touchstart", e=>{
+  const t = e.touches[0]; startX=t.clientX; startY=t.clientY;
+});
+canvas.addEventListener("touchend", e=>{
+  const t = e.changedTouches[0];
+  const dx = t.clientX - startX;
+  const dy = t.clientY - startY;
+  if(Math.abs(dx) > Math.abs(dy)){
+    if(dx>0 && direction!=="LEFT") direction="RIGHT";
+    else if(dx<0 && direction!=="RIGHT") direction="LEFT";
+  }else{
+    if(dy>0 && direction!=="UP") direction="DOWN";
+    else if(dy<0 && direction!=="DOWN") direction="UP";
+  }
+});
+
+// Draw function
+function draw(){
+  ctx.fillStyle="#111"; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(aiMode) aiMove();
+
+  let headX = snake[0].x;
+  let headY = snake[0].y;
+
+  if(direction==="LEFT") headX-=box;
+  if(direction==="RIGHT") headX+=box;
+  if(direction==="UP") headY-=box;
+  if(direction==="DOWN") headY+=box;
+
+  if(headX<0 || headY<0 || headX>=canvas.width || headY>=canvas.height || collision(headX,headY,snake)){
+    clearInterval(game);
+    document.getElementById("finalScore").textContent = score;
+    document.getElementById("gameOver").style.display="flex";
+    return;
+  }
+
+  if(headX===food.x && headY===food.y){
+    score++; document.getElementById("score").textContent=score;
+    food=spawnFood();
+  } else snake.pop();
+
+  snake.unshift({x:headX,y:headY});
+
+  ctx.fillStyle="#ff4d4d"; ctx.fillRect(food.x,food.y,box,box);
+  for(let i=0;i<snake.length;i++){
+    ctx.fillStyle=i===0?"#00ff88":"#00cc6a";
+    ctx.fillRect(snake[i].x,snake[i].y,box,box);
+  }
+}
+
+function collision(x,y,array){return array.some(s=>s.x===x&&s.y===y);}
+
+// --- AI ---
+function aiMove(){
+  const moves=["UP","DOWN","LEFT","RIGHT"];
+  let bestMove=null,bestScore=Infinity;
+  for(let move of moves){if(!isSafe(move)) continue; let score=evaluateMove(move); if(score<bestScore){bestScore=score; bestMove=move;}}
+  if(bestMove) direction=bestMove;
+}
+function evaluateMove(move){
+  let head=snake[0],x=head.x,y=head.y;
+  if(move==="LEFT") x-=box; if(move==="RIGHT") x+=box; if(move==="UP") y-=box; if(move==="DOWN") y+=box;
+  let foodDist=Math.abs(x-food.x)+Math.abs(y-food.y);
+  let tail=snake[snake.length-1]; let tailDist=Math.abs(x-tail.x)+Math.abs(y-tail.y);
+  return foodDist-tailDist*0.3;
+}
+function isSafe(move){
+  let head=snake[0],x=head.x,y=head.y;
+  if(move==="LEFT") x-=box; if(move==="RIGHT") x+=box; if(move==="UP") y-=box; if(move==="DOWN") y+=box;
+  if(x<0||y<0||x>=canvas.width||y>=canvas.height) return false;
+  for(let i=0;i<snake.length-1;i++) if(snake[i].x===x && snake[i].y===y) return false;
+  return true;
+}
+
+// PWA service worker
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}
+
+</script>
+
+</body>
+</html>
